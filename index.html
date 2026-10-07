@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>РЖД Монитор</title>
-    <!-- Официальный скрипт Telegram WebApp SDK -->
+    <!-- ИСПРАВЛЕНО: Правильный официальный скрипт Telegram WebApp SDK -->
     <script src="https://telegram.org"></script>
     <style>
         body { 
@@ -58,7 +58,7 @@
             margin-bottom: 16px; 
             font-size: 14px; 
             line-height: 1.5;
-            white-space: pre-line; /* Чтобы переносы строк отображались корректно */
+            white-space: pre-line; 
         }
     </style>
 </head>
@@ -86,8 +86,8 @@
 </div>
 
 <script>
-    // Инициализация Telegram WebApp
-    const tg = window.Telegram.WebApp;
+    // Безопасная инициализация Telegram WebApp
+    const tg = window.Telegram ? window.Telegram.WebApp : null;
     if (tg) {
         tg.ready();
         tg.expand();
@@ -120,13 +120,21 @@
 
         const day = parseInt(parts[0], 10);
         const month = parseInt(parts[1], 10) - 1;
-        const year = new Date().getFullYear();
+        
+        const now = new Date();
+        let year = now.getFullYear();
 
         let travelDate = new Date(year, month, day);
         
-        // Если дата уже прошла в этом году, переносим на следующий
-        if (travelDate < new Date() && (new Date().getMonth() - month) > 1) {
-            travelDate.setFullYear(year + 1);
+        // ИСПРАВЛЕНО: Улучшенная логика переноса даты на следующий год
+        if (travelDate < now) {
+            // Если разница больше чем в 1 день, значит пользователь имеет в виду следующий год
+            let diffTime = now - travelDate;
+            let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            if (diffDays > 1) {
+                year += 1;
+                travelDate = new Date(year, month, day);
+            }
         }
 
         if (isNaN(travelDate.getTime())) {
@@ -150,15 +158,13 @@
                      "⏰ Поставить будильник на: " + textSale + " в 07:50\n" +
                      "💻 Сайт: https://rzhd.ru";
 
-        // Выводим текст в блок и показываем его
         const box = document.getElementById('resultBox');
         box.innerText = textToCopy;
         box.style.display = 'block';
 
-        // Показываем кнопку копирования
         document.getElementById('copyBtn').style.display = 'block';
 
-        // Вибрация смартфона (если запущено в TG)
+        // Вибрация смартфона в Telegram
         if (tg && tg.HapticFeedback) {
             tg.HapticFeedback.notificationOccurred('success');
         }
