@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>РЖД Монитор</title>
-    <!-- ИСПРАВЛЕНО: Правильный официальный скрипт Telegram WebApp SDK -->
+    <!-- Официальный скрипт Telegram WebApp SDK -->
     <script src="https://telegram.org"></script>
     <style>
         body { 
@@ -28,7 +28,7 @@
         }
         h1 { font-size: 20px; margin: 0 0 16px 0; text-align: center; color: #E21A1A; }
         label { font-size: 12px; font-weight: bold; display: block; margin-bottom: 6px; color: #8A94A0; }
-        input { 
+        input, select { 
             width: 100%; 
             padding: 12px; 
             border: 1.5px solid #E8ECEF; 
@@ -36,6 +36,7 @@
             font-size: 15px; 
             margin-bottom: 16px; 
             box-sizing: border-box; 
+            background-color: white;
         }
         button { 
             width: 100%; 
@@ -74,8 +75,16 @@
         <label>КУДА</label>
         <input type="text" id="toCity" value="Орёл">
         
-        <label>ДАТА ОТПРАВЛЕНИЯ (ДД.ММ)</label>
-        <input type="text" id="dateInput" placeholder="Например: 25.12" maxlength="5">
+        <div style="display: flex; gap: 10px;">
+            <div style="flex: 2;">
+                <label>ДАТА (ДД.ММ)</label>
+                <input type="text" id="dateInput" placeholder="25.12" maxlength="5">
+            </div>
+            <div style="flex: 1;">
+                <label>ГОД</label>
+                <select id="yearSelect"></select>
+            </div>
+        </div>
         
         <button class="btn-calc" onclick="doCalculation()">Рассчитать</button>
         
@@ -86,12 +95,26 @@
 </div>
 
 <script>
-    // Безопасная инициализация Telegram WebApp
+    // Инициализация Telegram WebApp
     const tg = window.Telegram ? window.Telegram.WebApp : null;
     if (tg) {
         tg.ready();
         tg.expand();
     }
+
+    // Автоматическое заполнение выпадающего списка годов (текущий и следующий)
+    const currentYear = new Date().getFullYear();
+    const select = document.getElementById('yearSelect');
+    
+    const opt1 = document.createElement('option');
+    opt1.value = currentYear;
+    opt1.textContent = currentYear;
+    select.appendChild(opt1);
+    
+    const opt2 = document.createElement('option');
+    opt2.value = currentYear + 1;
+    opt2.textContent = currentYear + 1;
+    select.appendChild(opt2);
 
     // Автоматическая точка при вводе ДД.ММ
     document.getElementById('dateInput').addEventListener('input', function (e) {
@@ -106,6 +129,7 @@
         const from = document.getElementById('fromCity').value.trim();
         const to = document.getElementById('toCity').value.trim();
         const dateStr = document.getElementById('dateInput').value.trim();
+        const selectedYear = parseInt(document.getElementById('yearSelect').value, 10);
 
         if (!from || !to || !dateStr) {
             alert('Заполните все поля!');
@@ -120,29 +144,20 @@
 
         const day = parseInt(parts[0], 10);
         const month = parseInt(parts[1], 10) - 1;
-        
-        const now = new Date();
-        let year = now.getFullYear();
 
-        let travelDate = new Date(year, month, day);
-        
-        // ИСПРАВЛЕНО: Улучшенная логика переноса даты на следующий год
-        if (travelDate < now) {
-            // Если разница больше чем в 1 день, значит пользователь имеет в виду следующий год
-            let diffTime = now - travelDate;
-            let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            if (diffDays > 1) {
-                year += 1;
-                travelDate = new Date(year, month, day);
-            }
-        }
-
-        if (isNaN(travelDate.getTime())) {
-            alert('Неверная дата!');
+        if (day < 1 || day > 31 || month < 0 || month > 11) {
+            alert('Некорректный день или месяц!');
             return;
         }
 
-        // Отнимаем 90 дней
+        let travelDate = new Date(selectedYear, month, day);
+
+        if (isNaN(travelDate.getTime()) || travelDate.getDate() !== day) {
+            alert('Такой даты не существует в календаре!');
+            return;
+        }
+
+        // Отнимаем ровно 90 дней
         let saleDate = new Date(travelDate.getTime());
         saleDate.setDate(saleDate.getDate() - 90);
 
@@ -164,7 +179,6 @@
 
         document.getElementById('copyBtn').style.display = 'block';
 
-        // Вибрация смартфона в Telegram
         if (tg && tg.HapticFeedback) {
             tg.HapticFeedback.notificationOccurred('success');
         }
