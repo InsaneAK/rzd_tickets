@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>РЖД Монитор</title>
+    <!-- Официальный скрипт Telegram WebApp SDK -->
+    <script src="https://telegram.org"></script>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+            background: #F4F6F9; 
+            color: #1C1E21; 
+            margin: 0; 
+            padding: 16px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+        }
+        .container { width: 100%; max-width: 400px; box-sizing: border-box; }
+        .card { 
+            background: #FFFFFF; 
+            border-radius: 16px; 
+            padding: 20px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
+            margin-bottom: 16px; 
+            box-sizing: border-box;
+        }
+        h1 { font-size: 20px; margin: 0 0 16px 0; text-align: center; color: #E21A1A; }
+        label { font-size: 12px; font-weight: bold; display: block; margin-bottom: 6px; color: #8A94A0; }
+        input { 
+            width: 100%; 
+            padding: 12px; 
+            border: 1.5px solid #E8ECEF; 
+            border-radius: 10px; 
+            font-size: 15px; 
+            margin-bottom: 16px; 
+            box-sizing: border-box; 
+        }
+        button { 
+            width: 100%; 
+            padding: 14px; 
+            border: none; 
+            border-radius: 10px; 
+            font-size: 15px; 
+            font-weight: bold; 
+            cursor: pointer; 
+        }
+        .btn-calc { background: #E21A1A; color: white; margin-bottom: 10px; }
+        .btn-copy { background: #229ED9; color: white; display: none; }
+        
+        .result-box { 
+            display: none; 
+            background: #FFF2F2; 
+            border: 1px solid #FFF0F0;
+            border-radius: 10px; 
+            padding: 14px; 
+            margin-bottom: 16px; 
+            font-size: 14px; 
+            line-height: 1.5;
+            white-space: pre-line; /* Чтобы переносы строк отображались корректно */
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <h1>РЖД Монитор</h1>
+        
+        <label>ОТКУДА</label>
+        <input type="text" id="fromCity" value="Москва">
+        
+        <label>КУДА</label>
+        <input type="text" id="toCity" value="Орёл">
+        
+        <label>ДАТА ОТПРАВЛЕНИЯ (ДД.ММ)</label>
+        <input type="text" id="dateInput" placeholder="Например: 25.12" maxlength="5">
+        
+        <button class="btn-calc" onclick="doCalculation()">Рассчитать</button>
+        
+        <div id="resultBox" class="result-box"></div>
+        
+        <button id="copyBtn" class="btn-copy" onclick="copyText()">Скопировать напоминание</button>
+    </div>
+</div>
+
+<script>
+    // Инициализация Telegram WebApp
+    const tg = window.Telegram.WebApp;
+    if (tg) {
+        tg.ready();
+        tg.expand();
+    }
+
+    // Автоматическая точка при вводе ДД.ММ
+    document.getElementById('dateInput').addEventListener('input', function (e) {
+        let v = e.target.value.replace(/\D/g, '').slice(0, 4);
+        if (v.length > 2) { v = v.slice(0, 2) + '.' + v.slice(2); }
+        e.target.value = v;
+    });
+
+    let textToCopy = "";
+
+    function doCalculation() {
+        const from = document.getElementById('fromCity').value.trim();
+        const to = document.getElementById('toCity').value.trim();
+        const dateStr = document.getElementById('dateInput').value.trim();
+
+        if (!from || !to || !dateStr) {
+            alert('Заполните все поля!');
+            return;
+        }
+
+        const parts = dateStr.split('.');
+        if (parts.length !== 2 || parts[0].length !== 2 || parts[1].length !== 2) {
+            alert('Введите дату строго в формате ДД.ММ (например, 05.09)');
+            return;
+        }
+
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const year = new Date().getFullYear();
+
+        let travelDate = new Date(year, month, day);
+        
+        // Если дата уже прошла в этом году, переносим на следующий
+        if (travelDate < new Date() && (new Date().getMonth() - month) > 1) {
+            travelDate.setFullYear(year + 1);
+        }
+
+        if (isNaN(travelDate.getTime())) {
+            alert('Неверная дата!');
+            return;
+        }
+
+        // Отнимаем 90 дней
+        let saleDate = new Date(travelDate.getTime());
+        saleDate.setDate(saleDate.getDate() - 90);
+
+        const monthsText = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+        
+        const textTravel = day + ' ' + monthsText[month] + ' ' + travelDate.getFullYear();
+        const textSale = saleDate.getDate() + ' ' + monthsText[saleDate.getMonth()] + ' ' + saleDate.getFullYear();
+
+        // Формируем чистый текст
+        textToCopy = "📍 Маршрут: " + from + " → " + to + "\n" +
+                     "📅 Выезд: " + textTravel + "\n" +
+                     "📢 Старт продаж (-90 дней): " + textSale + " в 08:00\n" +
+                     "⏰ Поставить будильник на: " + textSale + " в 07:50\n" +
+                     "💻 Сайт: https://rzhd.ru";
+
+        // Выводим текст в блок и показываем его
+        const box = document.getElementById('resultBox');
+        box.innerText = textToCopy;
+        box.style.display = 'block';
+
+        // Показываем кнопку копирования
+        document.getElementById('copyBtn').style.display = 'block';
+
+        // Вибрация смартфона (если запущено в TG)
+        if (tg && tg.HapticFeedback) {
+            tg.HapticFeedback.notificationOccurred('success');
+        }
+    }
+
+    function copyText() {
+        if (!textToCopy) return;
+        
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            if (tg && tg.showAlert) {
+                tg.showAlert("✅ Текст скопирован в буфер обмена!");
+            } else {
+                alert("✅ Скопировано!");
+            }
+        }).catch(() => {
+            alert("Не удалось скопировать. Выделите текст пальцем из блока выше.");
+        });
+    }
+</script>
+
+</body>
+</html>
